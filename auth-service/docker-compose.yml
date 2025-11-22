@@ -1,0 +1,20 @@
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: your-secret-key-change-this-in-production-min-256-bits
+      JWT_EXPIRATION: 86400000
+      CORS_ALLOWED_ORIGIN: http://localhost:5173
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+

@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: ai-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.batch.BatchAutoConfiguration
+
+server:
+  port: 8003
+
+management:
+  health:
+    db:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+huggingface:
+  api:
+    url: https://api-inference.huggingface.co/models
+    model: google/flan-t5-base
+    timeout: 30000

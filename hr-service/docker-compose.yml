@@ -1,0 +1,62 @@
+services:
+  # PostgreSQL Database for HR Service
+  hr-db:
+    image: postgres:16-alpine
+    container_name: hr-service-db
+    environment:
+      POSTGRES_DB: hr_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - hr-db-data:/var/lib/postgresql/data
+    networks:
+      - hr-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # HR Service Application
+  hr-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hr-service-app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://hr-db:5432/hr_service_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: your-secret-key-change-this-in-production-min-256-bits
+      AI_SERVICE_URL: http://ai-service:8003
+    ports:
+      - "8002:8002"
+    depends_on:
+      hr-db:
+        condition: service_healthy
+    networks:
+      - hr-network
+    restart: unless-stopped
+
+  # Optional: AI Service (uncomment if you have the AI service)
+  # ai-service:
+  #   image: your-ai-service-image:latest
+  #   container_name: ai-service
+  #   ports:
+  #     - "8003:8003"
+  #   networks:
+  #     - hr-network
+  #   restart: unless-stopped
+
+networks:
+  hr-network:
+    driver: bridge
+    name: hr-network
+
+volumes:
+  hr-db-data:
+    name: hr-service-db-data
+
