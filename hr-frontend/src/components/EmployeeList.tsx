@@ -69,6 +69,7 @@ const EmployeeList = () => {
               {employee.position && (
                 <p className="employee-detail">💼 {employee.position}</p>
               )}
+              <>{"------------------------------------"}</>
             </Link>
           ))}
         </div>

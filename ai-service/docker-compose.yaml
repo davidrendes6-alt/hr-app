@@ -9,9 +9,9 @@ services:
     environment:
       - SPRING_APPLICATION_NAME=ai-service
       - SERVER_PORT=8003
-      - HUGGINGFACE_API_URL=https://api-inference.huggingface.co/models
-      - HUGGINGFACE_API_MODEL=google/flan-t5-base
-      - HUGGINGFACE_API_TIMEOUT=30000
+      - HUGGINGFACE_API_URL=https://router.huggingface.co/v1/chat/completions
+      - HUGGINGFACE_API_MODEL=meta-llama/Llama-3.1-8B-Instruct
+      - HUGGINGFACE_API_TOKEN=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
     networks:
       - hr-network
     restart: unless-stopped

@@ -37,7 +37,4 @@ const createApiClient = (baseURL: string): AxiosInstance => {
 // Service-specific API clients
 export const authApi = createApiClient("http://localhost:8001"); // auth-service
 export const hrApi = createApiClient("http://localhost:8002");   // hr-service
-export const aiApi = createApiClient("http://localhost:8003");   // ai-service
 
-// Legacy export for backward compatibility
-export const api = hrApi;

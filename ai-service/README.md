@@ -6,14 +6,18 @@ AI Service for HR Management Application - Provides text polishing capabilities 
 
 This service implements a REST API endpoint to polish/enhance text using AI models from HuggingFace. It's designed to integrate with the HR management system to improve feedback and other text content.
 
+The service is pre-configured with a HuggingFace API key and uses the **meta-llama/Llama-3.1-8B-Instruct** model for high-quality text polishing.
+
 ## Features
 
-- **Text Polishing**: Enhance and improve text using AI models
-- **HuggingFace Integration**: Uses free HuggingFace models (google/flan-t5-base)
+- **Text Polishing**: Enhance and improve text using AI models with intelligent prompt engineering
+- **HuggingFace Integration**: Uses Meta's Llama 3.1 8B Instruct model via HuggingFace router
+- **Clean Output**: Configured to return only polished text without explanations or formatting
 - **Context-Aware**: Supports optional context for better text enhancement
 - **CORS Enabled**: Configured for frontend integration (http://localhost:5173)
 - **Error Handling**: Comprehensive error handling with proper status codes
 - **Reactive Architecture**: Built with Spring WebFlux for non-blocking operations
+- **Retry Logic**: Automatic retry with exponential backoff for transient failures
 
 ## Prerequisites
 
@@ -33,10 +37,12 @@ server:
 
 huggingface:
   api:
-    url: https://api-inference.huggingface.co/models
-    model: google/flan-t5-base
-    timeout: 30000
+    url: https://router.huggingface.co/v1/chat/completions
+    model: meta-llama/Llama-3.1-8B-Instruct
+    key: <api-key-configured>  # Pre-configured HuggingFace API key
 ```
+
+**Note**: The service is pre-configured with a working API key. For production use, consider externalizing this as an environment variable.
 
 ## Building the Project
 
@@ -88,42 +94,56 @@ The service will start on `http://localhost:8003`
 
 ## Running with Docker
 
-You can run the AI Service using Docker or Docker Compose. This is the recommended way for deployment or local development without installing Java/Gradle.
+This service is designed to run as part of the HR Management Application ecosystem. The Docker Compose orchestration is managed by the **hr-service** project, which coordinates all microservices including this AI service.
 
 ### Prerequisites
 - [Docker](https://www.docker.com/get-started) installed
-- (Optional) [Docker Compose](https://docs.docker.com/compose/) for multi-service orchestration
+- [Docker Compose](https://docs.docker.com/compose/) installed
 
-### Build and Run with Docker
+### Running as Part of the HR Application
+
+To run this service along with the complete HR application:
+
+1. **Navigate to the hr-service directory:**
+   ```bash
+   cd ../hr-service
+   ```
+
+2. **Start all services using Docker Compose:**
+   ```bash
+   docker-compose up --build -d
+   ```
+
+3. **View logs for the AI service:**
+   ```bash
+   docker-compose logs -f ai-service
+   ```
+
+4. **Stop all services:**
+   ```bash
+   docker-compose down
+   ```
+
+The hr-service Docker Compose configuration will automatically build and start this AI service along with other required services.
+
+### Running Standalone with Docker (for development/testing)
+
+If you need to run this service independently for development or testing:
 
 1. **Build the Docker image:**
    ```bash
    docker build -t hr-ai-service .
    ```
+
 2. **Run the container:**
    ```bash
    docker run -p 8003:8003 --name hr-ai-service hr-ai-service
    ```
 
-### Build and Run with Docker Compose
-
-1. **Start the service:**
-   ```bash
-   docker-compose up --build -d
-   ```
-2. **View logs:**
-   ```bash
-   docker-compose logs -f ai-service
-   ```
-3. **Stop the service:**
-   ```bash
-   docker-compose down
-   ```
-
 ### Notes
 - The first request to the HuggingFace model may take longer as the model loads (cold start).
 - The service exposes port **8003** by default.
-- You can configure environment variables in `docker-compose.yaml` or override them at runtime.
+- For production deployment, always use the Docker Compose setup from the hr-service project.
 
 ### Testing the Service in Docker
 You can test the running service as described in the [Testing the API](#testing-the-api) section, e.g.:
@@ -154,7 +174,7 @@ Polish/enhance text using AI.
 {
   "originalText": "The original input text",
   "polishedText": "The enhanced, polished text",
-  "model": "google/flan-t5-base"
+  "model": "meta-llama/Llama-3.1-8B-Instruct"
 }
 ```
 
@@ -166,7 +186,7 @@ Polish/enhance text using AI.
   "status": 400,
   "error": "Bad Request",
   "message": "Text is required",
-  "timestamp": "2025-11-22T10:30:00"
+  "timestamp": "2025-11-25T10:30:00"
 }
 ```
 
@@ -176,7 +196,7 @@ Polish/enhance text using AI.
   "status": 500,
   "error": "Internal Server Error",
   "message": "AI model error: <error details>",
-  "timestamp": "2025-11-22T10:30:00"
+  "timestamp": "2025-11-25T10:30:00"
 }
 ```
 
@@ -242,10 +262,12 @@ src/main/java/com/hr_manager/ai_service/
 ## Key Components
 
 ### TextPolishingService
-- Integrates with HuggingFace Inference API
-- Handles prompt construction with optional context
-- Implements retry logic for transient failures
-- Extracts and processes AI model responses
+- Integrates with HuggingFace Chat Completions API
+- Handles prompt construction with explicit instructions for clean output
+- Configures the AI to return only polished text without explanations
+- Implements retry logic with exponential backoff for transient failures
+- Extracts and processes AI model responses from chat format
+- 30-second timeout for API requests
 
 ### PolishController
 - Exposes the `/polish` endpoint
@@ -264,20 +286,34 @@ src/main/java/com/hr_manager/ai_service/
 
 ## HuggingFace Models
 
-The service uses **google/flan-t5-base** by default. You can change the model in `application.yaml`:
+The service uses **meta-llama/Llama-3.1-8B-Instruct** via the HuggingFace router endpoint. This is a powerful instruction-tuned model that provides high-quality text polishing.
+
+### How It Works
+
+The service uses a chat completions API with carefully crafted prompts that:
+- Instruct the AI to act as a professional text editor
+- Explicitly request only the polished text without explanations
+- Prevent the model from adding introductory phrases
+- Support optional context for better understanding
 
 ### Alternative Models
 
-- `facebook/bart-large-cnn` - Good for summarization and polishing
-- `google/flan-t5-large` - Larger version, better quality
-- `bigscience/bloom-560m` - Multilingual support
+You can change the model in `application.yaml` to use other instruction-tuned models:
+
+- `meta-llama/Llama-3.2-3B-Instruct` - Smaller, faster version
+- `mistralai/Mistral-7B-Instruct-v0.3` - Alternative instruction model
+- `microsoft/Phi-3-mini-4k-instruct` - Compact model for faster responses
 
 To change the model, update `application.yaml`:
 ```yaml
 huggingface:
   api:
-    model: facebook/bart-large-cnn
+    url: https://router.huggingface.co/v1/chat/completions
+    model: mistralai/Mistral-7B-Instruct-v0.3
+    key: <your-api-key>
 ```
+
+**Note**: When using the HuggingFace router, ensure the model you choose supports the chat completions format.
 
 ## Error Handling
 

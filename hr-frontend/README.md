@@ -76,17 +76,23 @@ The application supports two primary roles with specific permissions:
 
 #### 2. **Manager Role**
 - ✅ All employee permissions
-- ✅ View and edit all employee profiles (including sensitive data)
+- ✅ View all employee profiles with complete sensitive data
+- ✅ Edit any employee profile (all fields including salary, contact info)
+- ✅ Browse employee directory
 - ✅ Approve/reject absence requests
-- ✅ Access manager dashboard
+- ✅ Access manager dashboard with pending requests
 
 ### Key Functionality
 
 #### Profile Management
 - **Full Profile View**: Employees see all their data including sensitive information (salary, SSN, contact details)
-- **Public Profile View**: Coworkers see limited, non-sensitive information (name, email, department, position)
-- **Edit Capabilities**: Profile owners and managers can edit all profile fields
-- **Sensitive Data Protection**: SSN is always masked (shows last 4 digits only)
+- **Public Profile View**: Regular employees see limited, non-sensitive information of coworkers (name, email, department, position)
+- **Manager Profile View**: Managers see complete employee profiles with all sensitive data (salary, phone, address, emergency contact, SSN)
+- **Edit Capabilities**: 
+  - Employees can edit their own profile
+  - Managers can edit any employee's profile with full access to all fields
+- **Sensitive Data Protection**: SSN is always masked (shows last 4 digits only), even for managers
+- **Employee Directory**: Searchable grid of all employees with filtering by name, email, department, or position
 
 #### Feedback System
 - **Leave Feedback**: Any employee can leave feedback on a coworker's profile
@@ -107,34 +113,37 @@ src/
 ├── api/
 │   ├── client.ts          # Axios instances for each service
 │   ├── authService.ts     # Auth-related API calls
-│   ├── hrService.ts       # HR-related API calls (profiles, absences, feedback)
-│   └── aiService.ts       # AI text polishing API calls
+│   └── hrService.ts       # HR-related API calls (profiles, absences, feedback with AI polishing)
 ├── components/
 │   ├── Layout.tsx         # Main layout with navigation
-│   └── Navbar.tsx         # Navigation bar
+│   ├── Navbar.tsx         # Modern navigation bar with icons and user info
+│   └── EmployeeList.tsx   # Employee directory with search functionality
 ├── hooks/
 │   └── useAuth.ts         # Zustand auth state management
 ├── pages/
 │   ├── Login.tsx          # Authentication page
 │   ├── Profile.tsx        # Own profile with edit capability
-│   ├── CoworkerProfile.tsx # View coworker + leave feedback
+│   ├── CoworkerProfile.tsx # View/edit employee profiles (manager) + leave feedback
 │   ├── ManagerProfile.tsx  # Manager dashboard for absence approvals
 │   └── AbsenceRequest.tsx  # Form to request absence
 ├── types/
 │   └── index.ts           # TypeScript type definitions
+├── App.css                # Global styles and component styling
+├── index.css              # Base styles and CSS reset
 ├── App.tsx                # Main app with routing
 └── main.tsx              # Entry point
 ```
 
 ## 🔑 API Configuration
 
-The application connects to three separate backend services. Update the base URLs in `src/api/client.ts` if needed:
+The application connects to two backend services. Update the base URLs in `src/api/client.ts` if needed:
 
 ```typescript
 export const authApi = createApiClient("http://localhost:8001");
 export const hrApi = createApiClient("http://localhost:8002");
-export const aiApi = createApiClient("http://localhost:8003");
 ```
+
+The HR service internally communicates with the AI service when feedback polishing is requested, so the frontend doesn't need direct AI service access.
 
 ## 🔐 Authentication Flow
 
@@ -143,6 +152,45 @@ export const aiApi = createApiClient("http://localhost:8003");
 3. Token is stored in localStorage
 4. All subsequent requests include the token in Authorization header
 5. 401 responses automatically redirect to login page
+
+## 🎨 UI/UX Features
+
+### Modern Design
+- **Gradient Theme**: Purple gradient navigation bar with smooth animations
+- **Card-Based Layout**: Clean white cards with shadows on gradient background
+- **Interactive Elements**: Hover effects, smooth transitions, and micro-interactions
+- **Responsive Design**: Fully responsive layout that works on mobile, tablet, and desktop
+
+### Navigation
+- **Sticky Navbar**: Stays visible while scrolling for easy navigation
+- **Icon Navigation**: Each link has intuitive emoji icons (👤 Profile, 👥 Employees, 📅 Absence, ⚡ Dashboard)
+- **Active State**: Current page is highlighted with underline and background
+- **User Info Display**: Shows avatar circle with initials, name, and role
+- **Role-Based Menu**: Manager dashboard link only visible to managers
+
+### Profile Pages
+- **Sectioned Layout**: Information organized into logical sections (Basic, Contact, Compensation, Sensitive)
+- **Edit Mode Toggle**: Seamless switch between view and edit modes
+- **Inline Editing**: Fields convert to inputs in edit mode
+- **Save/Cancel Actions**: Clear action buttons with loading states
+
+### Employee Directory
+- **Grid Layout**: Responsive grid of employee cards
+- **Search Functionality**: Real-time filtering by name, email, department, or position
+- **Card Hover Effects**: Cards lift and highlight on hover
+- **Quick Navigation**: Click any employee card to view their profile
+
+### Feedback System
+- **Collapsible Form**: Feedback form expands when needed, stays compact otherwise
+- **AI Enhancement Toggle**: Checkbox to enable AI polishing
+- **Visual AI Badge**: Gradient badge marks AI-enhanced feedback
+- **Feedback Cards**: Individual cards for each feedback item with hover effects
+
+### Forms & Inputs
+- **Focus States**: Input fields highlight with purple border on focus
+- **Button Variants**: Color-coded buttons (purple for primary, green for save, red for reject)
+- **Loading States**: Buttons show loading text and are disabled during operations
+- **Error/Success Messages**: Colored message boxes for feedback
 
 ## 📊 Data Privacy & Security
 
@@ -164,9 +212,11 @@ export const aiApi = createApiClient("http://localhost:8003");
 
 ### Permission System
 
-The backend enforces permissions, but the frontend also implements:
+The backend enforces permissions, and the frontend implements:
 - Conditional rendering based on user role
+- Different views for employees vs managers when viewing profiles
 - Route protection for manager-only pages
+- Edit capabilities restricted to profile owners and managers
 - API request filtering based on permissions
 
 ## 🎨 Future Improvements
@@ -175,20 +225,22 @@ Given more time, the following enhancements would be valuable:
 
 ### Frontend
 1. **Enhanced UI/UX**
-   - More polished styling with a design system (e.g., Material-UI, Tailwind)
+   - Consistent design system with reusable components
    - Loading skeletons instead of simple spinners
-   - Toast notifications for actions
-   - Dark mode support
+   - Toast notifications for actions (success/error)
+   - Animated page transitions
+   - Modal dialogs for confirmations
 
 2. **Form Validation**
    - Client-side validation with libraries like Zod or Yup
    - Real-time validation feedback
-   - Better error messages
+   - Better error messages with field-level errors
 
-3. **Search & Filtering**
-   - Search for coworkers by name, department, or position
-   - Filter absence requests by date range or status
+3. **Advanced Search & Filtering**
+   - Multi-criteria filtering for employees
+   - Sort options (by name, department, hire date)
    - Pagination for large datasets
+   - Export employee list to CSV
 
 4. **Real-time Updates**
    - WebSocket integration for live notifications
@@ -250,19 +302,33 @@ Given more time, the following enhancements would be valuable:
 
 ## 📝 Notes on Implementation
 
+### Current Implementation Highlights
+
+1. **Modern UI**: Custom CSS with gradient themes, card layouts, smooth animations, and hover effects throughout the application.
+
+2. **Enhanced Navigation**: Sticky navbar with emoji icons, active state indicators, user profile display with avatar and role badge.
+
+3. **Manager Capabilities**: Full CRUD operations on employee profiles with edit mode toggle, similar to own profile editing.
+
+4. **Employee Directory**: Searchable grid layout with real-time filtering and interactive employee cards.
+
+5. **Role-Based Views**: Dynamic content rendering based on user role - managers see sensitive data, employees see public data only.
+
+6. **Feedback System**: Complete feedback workflow with AI enhancement option, visual badges, and organized display.
+
 ### Pragmatic Choices Made
 
 1. **Simple State Management**: Used Zustand only for auth state; local component state for everything else. For larger apps, consider React Query or Redux.
 
-2. **Basic Styling**: Minimal CSS to demonstrate functionality. In production, use a UI library or design system.
+2. **Custom CSS**: Hand-written CSS for full control and demonstration. Production apps might benefit from Tailwind CSS or a component library.
 
 3. **No Backend Mocking**: Assumes backend services are running. For development without backends, add MSW (Mock Service Worker).
 
-4. **Limited Error Handling**: Basic try-catch blocks. Production apps need comprehensive error boundaries and logging.
+4. **Basic Error Handling**: Try-catch blocks with user-friendly messages. Production apps need comprehensive error boundaries and logging services.
 
-5. **No Test Coverage**: Focused on feature implementation. Real projects require thorough testing.
+5. **No Test Coverage**: Focused on feature implementation and UI. Real projects require thorough unit, integration, and E2E testing.
 
-6. **Simplified Permissions**: Role-based (employee/manager) rather than granular permission system. Fine-grained permissions would require a more complex RBAC system.
+6. **Simplified Permissions**: Two-role system (employee/manager). Enterprise apps might need fine-grained RBAC with multiple roles and permissions.
 
 ## 🛠️ Development
 
@@ -283,12 +349,12 @@ For production deployments, use environment variables for API URLs:
 ```env
 VITE_AUTH_API_URL=https://auth.yourapp.com
 VITE_HR_API_URL=https://hr.yourapp.com
-VITE_AI_API_URL=https://ai.yourapp.com
 ```
 
 Update `src/api/client.ts` to use:
 ```typescript
 const authApi = createApiClient(import.meta.env.VITE_AUTH_API_URL);
+const hrApi = createApiClient(import.meta.env.VITE_HR_API_URL);
 ```
 
 ## 📄 License

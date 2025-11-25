@@ -14,20 +14,54 @@ Authentication microservice for HR Management Application.
 ## Prerequisites
 
 - Java 21
-- PostgreSQL database
-- Gradle
+- PostgreSQL database running on localhost:5432
+- Gradle (or use the included Gradle wrapper)
+
+## Database Setup
+
+The application connects to a PostgreSQL database at `jdbc:postgresql://host.docker.internal:5432/auth_db`.
+
+### 1. Create the Database
+
+```sql
+CREATE DATABASE auth_db;
+```
+
+### 2. Database Migration
+
+The application uses Flyway for automatic database migrations. When you start the application, it will:
+- Create the `users` table with all necessary fields
+- Create indexes on `email` and `role` columns
+- Insert 3 test users with hashed passwords
+
+No manual SQL execution is needed - Flyway handles everything automatically on startup.
+
+**Resetting the Database:**
+
+If you need to reset the database and re-run migrations:
+
+```sql
+-- Connect to PostgreSQL
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+```
+
+Then restart the application to trigger automatic migration.
 
 ## Running with Docker (Recommended)
 
-You can run the Auth Service and its PostgreSQL database using Docker Compose. No local Java or PostgreSQL installation is required.
+Run the Auth Service in a Docker container while connecting to your local PostgreSQL database:
 
-### 1. Build and Start the Services
+### 1. Build and Start the Service
 
 ```bash
 # In the auth-service directory:
 docker-compose up --build -d
 ```
-- This will build the Auth Service Docker image and start both the app and the database.
+- This builds the Auth Service Docker image and starts the container
+- The service connects to PostgreSQL on your host machine via `host.docker.internal`
 - The service will be available at [http://localhost:8001](http://localhost:8001)
 
 ### 2. View Logs
@@ -36,19 +70,13 @@ docker-compose up --build -d
 docker-compose logs -f auth-service
 ```
 
-### 3. Stop the Services
+### 3. Stop the Service
 
 ```bash
 docker-compose down
 ```
 
-### 4. Remove All Data (Optional)
-
-```bash
-docker-compose down -v
-```
-
-### 5. Rebuild After Code Changes
+### 4. Rebuild After Code Changes
 
 ```bash
 docker-compose up --build -d
@@ -58,22 +86,17 @@ docker-compose up --build -d
 
 ## Running Locally (Manual Setup)
 
-If you prefer to run locally (requires Java 21 and PostgreSQL):
+If you prefer to run without Docker:
 
-1. **Create PostgreSQL Database**
-   ```sql
-   CREATE DATABASE auth_db;
-   ```
-2. **Configure Database Connection**
-   Update `src/main/resources/application.yaml` if needed.
-3. **Build the Project**
+1. **Build the Project**
    ```bash
    ./gradlew build
    ```
-4. **Run the Application**
+2. **Run the Application**
    ```bash
    ./gradlew bootRun
    ```
+3. **The service starts on port 8001**
 
 ---
 
@@ -116,12 +139,7 @@ Authenticate user and receive JWT token
 ```
 
 ### POST /auth/logout
-Invalidate current token (optional)
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
+Invalidate current token (Note: Currently returns a success message but doesn't implement token blacklisting)
 
 **Response:**
 ```json
@@ -169,21 +187,35 @@ All error responses follow this format:
 
 **Login:**
 ```bash
+# Linux/Mac/Git Bash
 curl -X POST http://localhost:8001/auth/login \
   -H "Content-Type: application/json" \
+  -d '{"email":"manager@company.com","password":"password123"}'
+
+# PowerShell
+curl -X POST http://localhost:8001/auth/login `
+  -H "Content-Type: application/json" `
   -d '{"email":"manager@company.com","password":"password123"}'
 ```
 
 **Validate Token:**
 ```bash
+# Linux/Mac/Git Bash
 curl -X GET http://localhost:8001/auth/validate \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+
+# PowerShell
+curl -X GET http://localhost:8001/auth/validate `
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
 **Logout:**
 ```bash
-curl -X POST http://localhost:8001/auth/logout \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+# Linux/Mac/Git Bash
+curl -X POST http://localhost:8001/auth/logout
+
+# PowerShell
+curl -X POST http://localhost:8001/auth/logout
 ```
 
 ## JWT Configuration
@@ -202,11 +234,16 @@ The service is configured to allow CORS from `http://localhost:5173` (frontend d
 ## Database Schema
 
 The users table includes:
-- Basic info: id, email, password_hash, name, role
-- Profile data: department, position, hire_date, salary
-- Contact info: phone_number, address, emergency_contact
-- Sensitive data: bank_account, ssn
-- Timestamps: created_at, updated_at
+- **Identity:** id (UUID), email (unique), password_hash
+- **Basic Info:** name, role (employee/manager)
+- **Work Details:** department, position, hire_date, salary
+- **Contact Info:** phone_number, address, emergency_contact
+- **Sensitive Data:** bank_account, ssn
+- **Timestamps:** created_at, updated_at
+
+**Indexes:**
+- `idx_users_email` on email column for faster lookups
+- `idx_users_role` on role column for filtering
 
 ## Architecture
 

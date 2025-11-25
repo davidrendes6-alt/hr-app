@@ -22,12 +22,15 @@ public class TextPolishingService {
 
     private final WebClient webClient;
     private final String model;
+    private final String apiKey;
+
 
     public TextPolishingService(
             @Value("${huggingface.api.url}") String apiUrl,
             @Value("${huggingface.api.model}") String model,
-            @Value("${huggingface.api.timeout}") int timeout) {
+            @Value("${huggingface.api.key}") String apiKey) {
         this.model = model;
+        this.apiKey = apiKey;
         this.webClient = WebClient.builder()
                 .baseUrl(apiUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -56,11 +59,16 @@ public class TextPolishingService {
     private String buildPrompt(PolishRequest request) {
         StringBuilder prompt = new StringBuilder();
 
+        prompt.append("You are a professional text editor. Improve and polish the following text to make it more professional, clear, and well-structured. ");
+        prompt.append("Return ONLY the polished text without any explanations, introductions, or additional comments. ");
+        prompt.append("Do not include phrases like 'Here is the polished version' or similar. ");
+        prompt.append("Just provide the improved text directly.\n\n");
+
         if (request.getContext() != null && !request.getContext().isEmpty()) {
             prompt.append("Context: ").append(request.getContext()).append("\n\n");
         }
 
-        prompt.append("Please improve and polish the following text to make it more professional, clear, and well-structured: ");
+        prompt.append("Text to polish:\n");
         prompt.append(request.getText());
 
         return prompt.toString();
@@ -68,23 +76,24 @@ public class TextPolishingService {
 
     private Mono<String> callHuggingFaceApi(String prompt) {
         Map<String, Object> requestBody = Map.of(
-                "inputs", prompt,
-                "parameters", Map.of(
-                        "max_length", 512,
-                        "temperature", 0.7,
-                        "do_sample", true
+                "model", model,
+                "messages", List.of(
+                        Map.of(
+                                "role", "user",
+                                "content", prompt
+                        )
                 )
         );
 
         return webClient.post()
-                .uri("/{model}", model)
+                .header("Authorization", "Bearer " + apiKey)
                 .bodyValue(requestBody)
                 .retrieve()
-                .bodyToMono(List.class)
+                .bodyToMono(Map.class)
                 .timeout(Duration.ofSeconds(30))
                 .retryWhen(Retry.backoff(2, Duration.ofSeconds(2))
                         .filter(throwable -> !(throwable instanceof WebClientResponseException.BadRequest)))
-                .map(this::extractTextFromResponse)
+                .map(this::extractFromChatResponse)
                 .onErrorResume(WebClientResponseException.class, ex -> {
                     log.error("HuggingFace API error: {} - {}", ex.getStatusCode(), ex.getResponseBodyAsString());
                     return Mono.error(new RuntimeException("AI model returned an error: " + ex.getMessage()));
@@ -95,29 +104,11 @@ public class TextPolishingService {
                 });
     }
 
-    private String extractTextFromResponse(List<?> response) {
-        if (response == null || response.isEmpty()) {
-            throw new RuntimeException("Empty response from AI model");
-        }
-
-        try {
-            Object firstElement = response.get(0);
-            if (firstElement instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> map = (Map<String, Object>) firstElement;
-                String generatedText = (String) map.get("generated_text");
-
-                if (generatedText != null && !generatedText.isEmpty()) {
-                    return generatedText.trim();
-                }
-            }
-
-            // Fallback: return the original response as string
-            return response.get(0).toString().trim();
-        } catch (Exception e) {
-            log.error("Error extracting text from response", e);
-            throw new RuntimeException("Failed to parse AI model response");
-        }
+    private String extractFromChatResponse(Map<?, ?> response) {
+        List<?> choices = (List<?>) response.get("choices");
+        Map<?, ?> firstChoice = (Map<?, ?>) choices.get(0);
+        Map<?, ?> message = (Map<?, ?>) firstChoice.get("message");
+        return ((String) message.get("content")).trim();
     }
 }
 
